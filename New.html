@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>OTP Test</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<body style="font-family: sans-serif; padding: 20px;">
+
+  <h3>OTP टेस्टिंग</h3>
+  <input type="text" id="phone" value="+919414750988" style="padding: 10px; width: 220px; font-size: 16px;">
+  <div id="recaptcha-container" style="margin: 15px 0;"></div>
+  <button id="sendBtn" style="padding: 10px 20px; font-size: 16px; background: blue; color: white; border: none;">OTP भेजें</button>
+
+  <br><br>
+  <input type="text" id="otp" placeholder="6 अंकों का OTP" style="padding: 10px; width: 220px; font-size: 16px;">
+  <button id="verifyBtn" style="padding: 10px 20px; font-size: 16px; background: green; color: white; border: none;">OTP चेक करें</button>
+
+  <p id="msg" style="color: red; font-weight: bold; margin-top: 15px;">पेज लोड हो रहा है...</p>
+
+  <script src="https://gstatic.com"></script>
+  <script src="https://gstatic.com"></script>
+  <script>
+    const msg = document.getElementById('msg');
+    try {
+      firebase.initializeApp({
+        apiKey: "AIzaSyAN14Sb7I6Uw2TiUBTj4Idkr332LKVjFGg",
+        authDomain: "://firebaseapp.com",
+        projectId: "easy-earning-6214b"
+      });
+      const auth = firebase.auth();
+      window.verifier = new firebase.auth.RecaptchaVerifier('recaptcha-container');
+      verifier.render().then(() => {
+        msg.style.color = "green";
+        msg.innerText = "तैयार है! अब 'I'm not a robot' पर टिक करें और OTP भेजें।";
+      });
+
+      document.getElementById('sendBtn').onclick = () => {
+        msg.style.color = "blue";
+        msg.innerText = "OTP भेजा जा रहा है...";
+        auth.signInWithPhoneNumber(document.getElementById('phone').value, window.verifier)
+          .then(res => {
+            window.confirmRes = res;
+            msg.style.color = "green";
+            msg.innerText = "OTP भेज दिया गया है! SMS चेक करें।";
+          })
+          .catch(err => {
+            msg.style.color = "red";
+            msg.innerText = "Error: " + err.message;
+          });
+      };
+
+      document.getElementById('verifyBtn').onclick = () => {
+        window.confirmRes.confirm(document.getElementById('otp').value)
+          .then(() => {
+            msg.style.color = "green";
+            msg.innerText = "सफल! OTP सही है।";
+          })
+          .catch(err => {
+            msg.style.color = "red";
+            msg.innerText = "गलत OTP: " + err.message;
+          });
+      };
+    } catch (e) {
+      msg.innerText = "Code Error: " + e.message;
+    }
+  </script>
+</body>
+</html>
