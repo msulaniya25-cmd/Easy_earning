@@ -202,4 +202,115 @@
       try {
         const res = await fetch(DB_URL + "users/" + userData.uid);
         if (res.ok) {
-          const doc = await res.json();
+          const doc = await res.json();          userData.balance = parseFloat(doc.fields?.balance?.doubleValue || doc.fields?.balance?.integerValue || 0);
+        } else {
+          await saveUserBalance(0);
+        }
+      } catch (e) {}
+    }
+
+    async function saveUserBalance(newBal) {
+      userData.balance = newBal;
+      localStorage.setItem("ee_user", JSON.stringify(userData));
+      document.getElementById('userBalance').innerText = newBal.toFixed(3);
+      await fetch(DB_URL + "users/" + userData.uid, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fields: { email: { stringValue: userData.email }, balance: { doubleValue: newBal } } })
+      });
+    }
+
+    function openDashboard() {
+      document.getElementById('login-screen').classList.add('hidden');
+      document.getElementById('app-screen').classList.remove('hidden');
+      document.getElementById('userBalance').innerText = (userData.balance || 0).toFixed(3);
+      document.getElementById('refLink').value = location.origin + location.pathname + "?ref=" + userData.uid.slice(0, 6);
+      loadTasks();
+    }
+
+    async function loadTasks() {
+      try {
+        const res = await fetch(DB_URL + "tasks");
+        const data = await res.json();
+        const box = document.getElementById('tasksBox');
+        box.innerHTML = "";
+        (data.documents || []).forEach(d => {
+          const f = d.fields;
+          const title = f.title.stringValue;
+          const desc = f.desc?.stringValue || "";
+          const reward = parseFloat(f.reward.doubleValue || f.reward.integerValue || 0);
+          const url = f.url.stringValue;
+          box.innerHTML += `<div class="card"><h3>${title} <span class="reward-tag">+$${reward}</span></h3><p>${desc}</p><button onclick="doTask('${url}', ${reward})" class="btn btn-green">Complete Task</button></div>`;
+        });
+      } catch (e) {}
+    }
+
+    function watchAd() {
+      const b = document.getElementById('watchAdBtn');
+      b.disabled = true; b.innerText = "Viewing Ad (15s)...";
+      window.open("https://google.com", "_blank");
+      setTimeout(async () => {
+        await saveUserBalance((userData.balance || 0) + 0.005);
+        b.disabled = false; b.innerText = "Watch Ad & Earn";
+        showToast("+$0.005 Added!");
+      }, 15000);
+    }
+
+    function doTask(url, r) {
+      window.open(url, "_blank");
+      setTimeout(async () => {
+        await saveUserBalance((userData.balance || 0) + parseFloat(r));
+        showToast("+$" + r + " Added!");
+      }, 15000);
+    }
+
+    async function requestWithdraw() {
+      const method = document.getElementById('payMethod').value;
+      const details = document.getElementById('payDetails').value.trim();
+      const amount = parseFloat(document.getElementById('withdrawAmount').value);
+      if (!details || isNaN(amount) || amount < 5) return showToast("Min $5.00 & enter details!", true);
+      if (amount > userData.balance) return showToast("Insufficient Balance!", true);
+
+      await saveUserBalance(userData.balance - amount);
+      await fetch(DB_URL + "withdrawals", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fields: {
+            uid: { stringValue: userData.uid },
+            email: { stringValue: userData.email },
+            method: { stringValue: method },
+            details: { stringValue: details },
+            amount: { doubleValue: amount },
+            status: { stringValue: "Pending" }
+          }
+        })
+      });
+      showToast("Withdraw Request Submitted!");
+    }
+
+    function doLogout() {
+      localStorage.removeItem("ee_user");
+      userData = null;
+      document.getElementById('login-screen').classList.remove('hidden');
+      document.getElementById('app-screen').classList.add('hidden');
+    }
+
+    function switchTab(t, el) {
+      ['earn', 'refer', 'withdraw'].forEach(x => document.getElementById('tab-' + x).classList.add('hidden'));
+      document.getElementById('tab-' + t).classList.remove('hidden');
+      document.querySelectorAll('.nav button').forEach(x => x.classList.remove('active'));
+      el.classList.add('active');
+    }
+
+    function copyRef() {
+      const i = document.getElementById('refLink');
+      i.select(); navigator.clipboard.writeText(i.value);
+      showToast("Link Copied!");
+    }
+
+    if (userData) openDashboard();
+  </script>
+</body>
+</html>
+
