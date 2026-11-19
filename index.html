@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Easy Earning</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }
+    body { background: #0b1120; color: #fff; padding: 15px; }
+    .box { max-width: 450px; margin: 20px auto; background: #1e293b; padding: 20px; border-radius: 12px; }
+    h2 { color: #38bdf8; text-align: center; margin-bottom: 15px; }
+    input, select { width: 100%; padding: 12px; margin-bottom: 12px; border-radius: 8px; border: 1px solid #475569; background: #0f172a; color: #fff; }
+    button { width: 100%; padding: 12px; border: none; border-radius: 8px; font-weight: bold; font-size: 15px; margin-bottom: 10px; cursor: pointer; }
+    .blue { background: #38bdf8; color: #000; }
+    .green { background: #10b981; color: #fff; }
+    .line { background: transparent; border: 1px solid #38bdf8; color: #38bdf8; }
+    .hidden { display: none; }
+    #msg { background: #10b981; padding: 10px; border-radius: 8px; text-align: center; margin-bottom: 12px; display: none; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <h2>Easy Earning ($)</h2>
+    <div id="msg"></div>
+
+    <div id="authBox">
+      <input type="email" id="email" placeholder="Enter Gmail Address">
+      <input type="password" id="pass" placeholder="Enter Password (min 6 chars)">
+      <button id="btnLogin" class="blue" onclick="loginUser()">Login with Password</button>
+      <button id="btnSignup" class="green hidden" onclick="signupUser()">Send Verification Link</button>
+      <button id="btnSwitch" class="line" onclick="switchMode()">New User? Create Account</button>
+    </div>
+
+    <div id="dashBox" class="hidden">
+      <h3 style="text-align:center; margin-bottom:15px;">Balance: $<span id="bal">0.000</span></h3>
+      <button id="adBtn" class="blue" onclick="watchAd()">Watch Ad (+$0.005)</button>
+      <div id="tasks"></div>
+      <hr style="border-color:#334155; margin:15px 0;">
+      <select id="payType"><option>USDT</option><option>PayPal</option><option>UPI</option></select>
+      <input type="text" id="payId" placeholder="Wallet / PayPal / UPI ID">
+      <input type="number" id="payAmt" placeholder="Withdraw Amount (Min $5.00)">
+      <button class="green" onclick="withdraw()">Request Withdraw</button>
+      <button class="line" onclick="logout()">Logout</button>
+    </div>
+  </div>
+  <script>
+    const K = "AIzaSyAJYx0zl4qAtR7pd7ZxpWV2W_QD7BL6ETc";
+    const P = "easy-earning-6214b";
+    const A = ["https://", "identitytoolkit", "://:"].join("");
+    const D = ["https://", "firestore", "://", P, "/databases/(default)/documents/"].join("");
+    let mode = "login";
+    let u = JSON.parse(localStorage.getItem("ee_u") || "null");
+
+    function show(t, e) {
+      const m = document.getElementById("msg");
+      m.innerText = t;
+      m.style.background = e ? "#ef4444" : "#10b981";
+      m.style.display = "block";
+    }
+
+    function switchMode() {
+      mode = mode === "login" ? "signup" : "login";
+      document.getElementById("btnLogin").classList.toggle("hidden", mode !== "login");
+      document.getElementById("btnSignup").classList.toggle("hidden", mode === "login");
+      document.getElementById("btnSwitch").innerText = mode === "login" ? "New User? Create Account" : "Already Registered? Login";
+    }
+
+    async function signupUser() {
+      const email = document.getElementById("email").value.trim();
+      const password = document.getElementById("pass").value.trim();
+      if (!email || password.length < 6) return show("Enter valid Gmail & 6+ char password", 1);
+      show("Sending verification link...");
+      try {
+        const r = await fetch(A + "signUp?key=" + K, {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password, returnSecureToken: true })
+        });
+        const d = await r.json();
+        if (d.error) return show(d.error.message, 1);
+        await fetch(A + "sendOobCode?key=" + K, {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ requestType: "VERIFY_EMAIL", idToken: d.idToken })
+        });
+        show("Link sent! Check Gmail (Inbox/Spam), click link, then login.");
+        switchMode();
+      } catch (err) {
+        show("Network blocked! Turn ON Proton VPN and try again.", 1);
+      }
+    }
+    async function loginUser() {
+      const email = document.getElementById("email").value.trim();
+      const password = document.getElementById("pass").value.trim();
+      if (!email || !password) return show("Enter Gmail and Password", 1);
+      show("Checking account...");
+      try {
+        const r = await fetch(A + "signInWithPassword?key=" + K, {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password, returnSecureToken: true })
+        });
+        const d = await r.json();
+        if (d.error) return show(d.error.message, 1);
+
+        const ir = await fetch(A + "lookup?key=" + K, {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ idToken: d.idToken })
+        });
+        const info = await ir.json();
+        const user = info.users[0];
+
+        if (!user.emailVerified) {
+          await fetch(A + "sendOobCode?key=" + K, {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ requestType: "VERIFY_EMAIL", idToken: d.idToken })
+          });
+          return show("Email not verified! New link sent to your Gmail.", 1);
+        }
+
+        u = { uid: user.localId, email: user.email, bal: 0 };
+        const dr = await fetch(D + "users/" + u.uid);
+        if (dr.ok) {
+          const doc = await dr.json();
+          u.bal = parseFloat(doc.fields?.bal?.doubleValue || 0);
+        } else {
+          await saveBal(0);
+        }
+        localStorage.setItem("ee_u", JSON.stringify(u));
+        openDash();
+      } catch (err) {
+        show("Network blocked! Turn ON Proton VPN and try again.", 1);
+      }
+    }
+
+    async function saveBal(nb) {
+      u.bal = nb;
+      localStorage.setItem("ee_u", JSON.stringify(u));
+      document.getElementById("bal").innerText = nb.toFixed(3);
+      await fetch(D + "users/" + u.uid, {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fields: { email: { stringValue: u.email }, bal: { doubleValue: nb } } })
+      });
+    }
+
+    async function openDash() {
+      document.getElementById("authBox").classList.add("hidden");
+      document.getElementById("dashBox").classList.remove("hidden");
+      document.getElementById("bal").innerText = (u.bal || 0).toFixed(3);
+      try {
+        const tr = await fetch(D + "tasks");
+        const td = await tr.json();
+        const box = document.getElementById("tasks");
+        box.innerHTML = "";
+        (td.documents || []).forEach(doc => {
+          const f = doc.fields;
+          const rw = parseFloat(f.reward.doubleValue || f.reward.integerValue || 0);
+          box.innerHTML += `<button class="green" onclick="doTask('${f.url.stringValue}', ${rw})">${f.title.stringValue} (+$${rw})</button>`;
+        });
+      } catch (e) {}
+    }
+
+    function watchAd() {
+      const b = document.getElementById("adBtn");
+      b.disabled = true; b.innerText = "Wait 15s...";
+      window.open("https://google.com", "_blank");
+      setTimeout(async () => {
+        await saveBal((u.bal || 0) + 0.005);
+        b.disabled = false; b.innerText = "Watch Ad (+$0.005)";
+        show("+$0.005 Added!");
+      }, 15000);
+    }
+
+    function doTask(url, rw) {
+      window.open(url, "_blank");
+      setTimeout(async () => {
+        await saveBal((u.bal || 0) + rw);
+        show("+$" + rw + " Added!");
+      }, 15000);
+    }
+
+    async function withdraw() {
+      const amt = parseFloat(document.getElementById("payAmt").value);
+      const id = document.getElementById("payId").value.trim();
+      if (!id || isNaN(amt) || amt < 5 || amt > u.bal) return show("Min $5.00 & valid details required!", 1);
+      await saveBal(u.bal - amt);
+      await fetch(D + "withdrawals", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fields: { email: { stringValue: u.email }, method: { stringValue: document.getElementById("payType").value }, details: { stringValue: id }, amount: { doubleValue: amt }, status: { stringValue: "Pending" } } })
+      });
+      show("Withdraw Request Sent!");
+    }
+
+    function logout() { localStorage.removeItem("ee_u"); location.reload(); }
+    if (u) openDash();
+  </script>
+</body>
+</html>
