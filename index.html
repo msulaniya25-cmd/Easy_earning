@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Easy Earning - Earn Real USD</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }
+    body { background: #0b1120; color: #f8fafc; padding-bottom: 80px; }
+    .header { background: #1e293b; padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; }
+    .logo { font-size: 20px; font-weight: bold; color: #38bdf8; }
+    .balance-badge { background: #10b981; color: #fff; padding: 6px 14px; border-radius: 20px; font-weight: bold; }
+    .container { max-width: 500px; margin: 0 auto; padding: 15px; }
+    .ad-slot { background: #162032; border: 1px dashed #475569; padding: 14px; text-align: center; border-radius: 10px; margin: 12px 0; color: #94a3b8; font-size: 12px; }
+    .card { background: #1e293b; border-radius: 14px; padding: 18px; margin-bottom: 15px; border: 1px solid #334155; }
+    .card h3 { font-size: 17px; margin-bottom: 6px; display: flex; justify-content: space-between; }
+    .reward-tag { background: rgba(56,189,248,0.15); color: #38bdf8; padding: 3px 10px; border-radius: 12px; font-size: 13px; }
+    .card p { font-size: 13px; color: #94a3b8; margin-bottom: 14px; }
+    .btn { width: 100%; padding: 12px; border: none; border-radius: 10px; font-size: 15px; font-weight: bold; cursor: pointer; margin-bottom: 8px; }
+    .btn-primary { background: #38bdf8; color: #0f172a; }
+    .btn-green { background: #10b981; color: #fff; }
+    .btn-outline { background: transparent; border: 1px solid #38bdf8; color: #38bdf8; }
+    .btn:disabled { opacity: 0.5; }
+    input, select { width: 100%; padding: 12px; margin-bottom: 12px; border-radius: 8px; border: 1px solid #475569; background: #0f172a; color: #fff; }
+    .nav { position: fixed; bottom: 0; left: 0; right: 0; background: #1e293b; display: flex; justify-content: space-around; padding: 12px 0; border-top: 1px solid #334155; }
+    .nav button { background: none; border: none; color: #94a3b8; font-size: 13px; font-weight: bold; }
+    .nav button.active { color: #38bdf8; }
+    .hidden { display: none; }
+    .toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: #10b981; color: #fff; padding: 12px 20px; border-radius: 8px; z-index: 999; display: none; width: 90%; text-align: center; font-weight: bold; }
+  </style>
+</head>
+<body>
+
+  <div id="toast" class="toast"></div>
+
+  <div id="login-screen" class="container" style="padding-top:35px;">
+    <h1 style="color:#38bdf8; font-size:30px; text-align:center; margin-bottom:6px;">Easy Earning</h1>
+    <p style="color:#94a3b8; text-align:center; margin-bottom:20px;">Earn Real USD ($) Worldwide</p>
+    <div class="card">
+      <h3 id="authTitle" style="justify-content:center; margin-bottom:10px;">Login to Account</h3>
+      <input type="email" id="emailInput" placeholder="Enter Email Address">
+      <input type="password" id="passInput" placeholder="Enter Password (min 6 chars)">
+      <button id="loginBtn" class="btn btn-primary" onclick="doLogin()">Login with Password</button>
+      <button id="signupBtn" class="btn btn-green hidden" onclick="doSignup()">Create & Send Verification Link</button>
+      <button id="toggleBtn" class="btn btn-outline" onclick="toggleMode()">New User? Create & Verify Account</button>
+    </div>
+  </div>
+
+  <div id="app-screen" class="hidden">
+    <div class="header">
+      <div class="logo">Easy Earning</div>
+      <div class="balance-badge">$<span id="userBalance">0.000</span></div>
+    </div>
+
+    <div class="container">
+      <div class="ad-slot">Sponsored Banner Ad Slot</div>
+
+      <div id="tab-earn">
+        <div class="card">
+          <h3>Watch Sponsored Ad <span class="reward-tag">+$0.005</span></h3>
+          <p>View a partner ad for 15 seconds to earn USD.</p>
+          <button id="watchAdBtn" class="btn btn-primary" onclick="watchAd()">Watch Ad & Earn</button>
+        </div>
+        <div id="tasksBox"></div>
+      </div>
+
+      <div id="tab-refer" class="hidden">
+        <div class="card">
+          <h3>Invite Friends & Earn 10%</h3>
+          <p>Share your link worldwide! Earn 10% commission on friend tasks.</p>
+          <input type="text" id="refLink" readonly>
+          <button onclick="copyRef()" class="btn btn-primary">Copy Referral Link</button>
+        </div>
+      </div>
+
+      <div id="tab-withdraw" class="hidden">
+        <div class="card">
+          <h3>Withdraw (Min $5.00)</h3>
+          <p>Processing time: 3 to 7 business days.</p>
+          <select id="payMethod">
+            <option value="USDT">USDT Crypto (Min $5.00)</option>
+            <option value="PayPal">PayPal (Min $5.00)</option>
+            <option value="UPI">UPI India (Min $5.00)</option>
+          </select>
+          <input type="text" id="payDetails" placeholder="Wallet / PayPal Email / UPI ID">
+          <input type="number" id="withdrawAmount" placeholder="Amount in USD (Min 5.00)" step="0.01">
+          <button onclick="requestWithdraw()" class="btn btn-green">Request Payout</button>
+        </div>
+        <button onclick="doLogout()" class="btn" style="background:#334155; color:#fff;">Logout</button>
+      </div>
+
+      <div class="ad-slot">Native / Social Bar Ad Slot</div>
+    </div>
+
+    <div class="nav">
+      <button class="active" onclick="switchTab('earn', this)">Earn</button>
+      <button onclick="switchTab('refer', this)">Refer</button>
+      <button onclick="switchTab('withdraw', this)">Withdraw</button>
+    </div>
+  </div>
+  <script>
+    const K = "AIzaSyAJYx0zl4qAtR7pd7ZxpWV2W_QD7BL6ETc";
+    const P = "easy-earning-6214b";
+    const AUTH_URL = ["https://", "identitytoolkit", "://:"].join("");
+    const DB_URL = ["https://", "firestore", "://", P, "/databases/(default)/documents/"].join("");
+    let isSignup = false;
+    let userData = JSON.parse(localStorage.getItem("ee_user") || "null");
+
+    function showToast(m, err) {
+      const t = document.getElementById('toast');
+      t.innerText = m;
+      t.style.background = err ? '#ef4444' : '#10b981';
+      t.style.display = 'block';
+      setTimeout(() => t.style.display = 'none', 4500);
+    }
+
+    function toggleMode() {
+      isSignup = !isSignup;
+      document.getElementById('authTitle').innerText = isSignup ? "Create New Account" : "Login to Account";
+      document.getElementById('loginBtn').classList.toggle('hidden', isSignup);
+      document.getElementById('signupBtn').classList.toggle('hidden', !isSignup);
+      document.getElementById('toggleBtn').innerText = isSignup ? "Already Verified? Login Here" : "New User? Create & Verify Account";
+    }
+    async function doSignup() {
+      const email = document.getElementById('emailInput').value.trim();
+      const password = document.getElementById('passInput').value.trim();
+      if (!email || password.length < 6) return showToast("Enter valid email & 6+ char password", true);
+
+      const btn = document.getElementById('signupBtn');
+      btn.disabled = true; btn.innerText = "Sending Link...";
+
+      try {
+        const res = await fetch(AUTH_URL + "signUp?key=" + K, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password, returnSecureToken: true })
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error.message);
+
+        await fetch(AUTH_URL + "sendOobCode?key=" + K, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ requestType: "VERIFY_EMAIL", idToken: data.idToken })
+        });
+
+        showToast("Verification link sent! Check Gmail (Inbox/Spam), click link, then login.");
+        toggleMode();
+      } catch (e) {
+        showToast(e.message, true);
+      }
+      btn.disabled = false; btn.innerText = "Create & Send Verification Link";
+    }
+    async function doLogin() {
+      const email = document.getElementById('emailInput').value.trim();
+      const password = document.getElementById('passInput').value.trim();
+      if (!email || !password) return showToast("Enter email and password", true);
+
+      const btn = document.getElementById('loginBtn');
+      btn.disabled = true; btn.innerText = "Checking...";
+
+      try {
+        const res = await fetch(AUTH_URL + "signInWithPassword?key=" + K, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password, returnSecureToken: true })
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error.message);
+
+        const infoRes = await fetch(AUTH_URL + "lookup?key=" + K, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ idToken: data.idToken })
+        });
+        const info = await infoRes.json();
+        const user = info.users;
+
+        if (!user.emailVerified) {
+          await fetch(AUTH_URL + "sendOobCode?key=" + K, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ requestType: "VERIFY_EMAIL", idToken: data.idToken })
+          });
+          throw new Error("Email not verified! New link sent to your Gmail.");
+        }
+
+        userData = { uid: user.localId, email: user.email, balance: 0 };
+        await loadUserBalance();
+        localStorage.setItem("ee_user", JSON.stringify(userData));
+        openDashboard();
+      } catch (e) {
+        showToast(e.message, true);
+      }
+      btn.disabled = false; btn.innerText = "Login with Password";
+      async function loadUserBalance() {
+      try {
+        const res = await fetch(DB_URL + "users/" + userData.uid);
+        if (res.ok) {
+          const doc = await res.json();
+          userData.balance = parseFloat(doc.fields?.balance?.doubleValue || doc.fields?.balance?.integerValue || 0);
+        } else {
+          await saveUserBalance(0);
+        }
+      } catch (e) {}
+    }
+
+    async function saveUserBalance(newBal) {
+      userData.balance = newBal;
+      localStorage.setItem("ee_user", JSON.stringify(userData));
+      document.getElementById('userBalance').innerText = newBal.toFixed(3);
+      await fetch(DB_URL + "users/" + userData.uid, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fields: { email: { stringValue: userData.email }, balance: { doubleValue: newBal } } })
+      });
+    }
+
+    function openDashboard() {
+      document.getElementById('login-screen').classList.add('hidden');
+      document.getElementById('app-screen').classList.remove('hidden');
+      document.getElementById('userBalance').innerText = (userData.balance || 0).toFixed(3);
+      document.getElementById('refLink').value = location.origin + location.pathname + "?ref=" + userData.uid.slice(0, 6);
+      loadTasks();
+    }
+
+    async function loadTasks() {
+      try {
+        const res = await fetch(DB_URL + "tasks");
+        const data = await res.json();
+        const box = document.getElementById('tasksBox');
+        box.innerHTML = "";
+        (data.documents || []).forEach(d => {
+          const f = d.fields;
+          const title = f.title.stringValue;
+          const desc = f.desc?.stringValue || "";
+          const reward = parseFloat(f.reward.doubleValue || f.reward.integerValue || 0);
+          const url = f.url.stringValue;
+          box.innerHTML += `<div class="card"><h3>${title} <span class="reward-tag">+$${reward}</span></h3><p>${desc}</p><button onclick="doTask('${url}', ${reward})" class="btn btn-green">Complete Task</button></div>`;
+        });
+      } catch (e) {}
+    }
+
+    function watchAd() {
+      const b = document.getElementById('watchAdBtn');
+      b.disabled = true; b.innerText = "Viewing Ad (15s)...";
+      window.open("https://google.com", "_blank");
+      setTimeout(async () => {
+        await saveUserBalance((userData.balance || 0) + 0.005);
+        b.disabled = false; b.innerText = "Watch Ad & Earn";
+        showToast("+$0.005 Added!");
+      }, 15000);
+    }
+
+    function doTask(url, r) {
+      window.open(url, "_blank");
+      setTimeout(async () => {
+        await saveUserBalance((userData.balance || 0) + parseFloat(r));
+        showToast("+$" + r + " Added!");
+      }, 15000);
+    }
+
+    async function requestWithdraw() {
+      const method = document.getElementById('payMethod').value;
+      const details = document.getElementById('payDetails').value.trim();
+      const amount = parseFloat(document.getElementById('withdrawAmount').value);
+      if (!details || isNaN(amount) || amount < 5) return showToast("Min $5.00 & enter details!", true);
+      if (amount > userData.balance) return showToast("Insufficient Balance!", true);
+
+      await saveUserBalance(userData.balance - amount);
+      await fetch(DB_URL + "withdrawals", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fields: {
+            uid: { stringValue: userData.uid },
+            email: { stringValue: userData.email },
+            method: { stringValue: method },
+            details: { stringValue: details },
+            amount: { doubleValue: amount },
+            status: { stringValue: "Pending" }
+          }
+        })
+      });
+      showToast("Withdraw Request Submitted!");
+    }
+
+    function doLogout() {
+      localStorage.removeItem("ee_user");
+      userData = null;
+      document.getElementById('login-screen').classList.remove('hidden');
+      document.getElementById('app-screen').classList.add('hidden');
+    }
+
+    function switchTab(t, el) {
+      ['earn', 'refer', 'withdraw'].forEach(x => document.getElementById('tab-' + x).classList.add('hidden'));
+      document.getElementById('tab-' + t).classList.remove('hidden');
+      document.querySelectorAll('.nav button').forEach(x => x.classList.remove('active'));
+      el.classList.add('active');
+    }
+
+    function copyRef() {
+      const i = document.getElementById('refLink');
+      i.select(); navigator.clipboard.writeText(i.value);
+      showToast("Link Copied!");
+    }
+
+    if (userData) openDashboard();
+  </script>
+</body>
+</html>
+
